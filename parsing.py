@@ -25,9 +25,11 @@ class ParsingFile:
 
         key, val = line.split(':', 1)
         key = key.strip()
-        
+
         if key in ['hub', 'start_hub', 'end_hub']:
             values = val.split('#', 1)[0].strip().split(None, 3)
+            if len(values) > 5:
+                raise ParsingError(f"too many values in {key}")
             if len(values) < 3 or len(values) > 4:
                 raise ParsingError(f"Invalid {key}")
             elif key == 'start_hub':
@@ -49,15 +51,32 @@ class ParsingFile:
             values = val.split('#', 1)[0].strip().split(None, 2)
             if len(values) < 1 or len(values) > 2:
                 raise ParsingError("Invalid connection data")
-            
-        if self.count_nb_drones > 1:
-            raise ParsingError("too many nb_drones")
-        if self.count_nb_end_hub > 1:
-            raise ParsingError("too many nb_end_hub")
-        if self.count_nb_start_hub > 1:
-            raise ParsingError("too many nb_start_hub")
 
+    def parse_drone__count(self, line: str) -> int:
+        line = line.strip()
 
+        if not line or line.startswith('#'):
+            return
+
+        if self.count_nb_drones != 1:
+            raise ParsingError("Data most hold 1 nb_drones")
+        
+        key, val = line.split(':', 1)
+        key = key.strip()
+        val = val.strip()
+
+        if key == 'nb_drones':
+            try:
+                nb = int(val)
+                if nb <= 0:
+                    raise ParsingError ("The value of nb_drones most be a" \
+                    "positive int and non '0'")
+            except ValueError:
+                raise ParsingError(f"The value of nb_drones most be an int")
+            else:
+                return (nb)
+
+    
 
 if __name__ == "__main__":
     parse = ParsingFile(count_nb_drones=0, count_nb_start_hub=0,
@@ -67,5 +86,13 @@ if __name__ == "__main__":
         try:
             for line in f:
                 parse.parse_line(line)
+            f.seek(0)
+            for line in f:
+                result = parse.parse_drone__count(line)
+                if result is not None:
+                    nb_drones = result
+                # parse.parse_hub(line, is_start=False, is_end=False)
+                # parse.parse_connection(line)
+            print(nb_drones)
         except Exception as e:
             print(f"Error: {e}")

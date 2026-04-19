@@ -76,7 +76,8 @@ class ParsingFile:
             else:
                 return (nb)
 
-    
+    def parse_hub(line: str, is_start: bool, is_end:bool) -> Dict:
+        pass
 
 if __name__ == "__main__":
     parse = ParsingFile(count_nb_drones=0, count_nb_start_hub=0,
@@ -91,7 +92,13 @@ if __name__ == "__main__":
                 result = parse.parse_drone__count(line)
                 if result is not None:
                     nb_drones = result
-                # parse.parse_hub(line, is_start=False, is_end=False)
+                if 'start_hub' in line:
+                    parse.parse_hub(line, is_start=True, is_end=False)
+                if 'end_hub' in line:
+                    parse.parse_hub(line, is_start=False, is_end=True)
+                if 'hub' in line:
+                    parse.parse_hub(line, is_start=False, is_end=False)
+                
                 # parse.parse_connection(line)
             print(nb_drones)
         except Exception as e:

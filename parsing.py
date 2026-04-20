@@ -80,23 +80,23 @@ class ParsingFile:
                 return (nb)
 
 
-    # def parse_properties(self, properties_string: str, hub_type: str) -> None:
-    #     properties_string = properties_string.split('[', 1)[1].strip()
-    #     properties_string = properties_string.split(']', 1)[0].strip()
-    #     properties_string = properties_string.split(None, 2)
-    #     properties_string = properties_string.split(' ', 1)[0]
+    def parse_properties(self, properties_string: str, hub_type: str) -> None:
+        properties_string = properties_string.split('[', 1)[1].strip()
+        properties_string = properties_string.split(']', 1)[0].strip()
+        properties_string = properties_string.split(None, 2)
+        properties_string = properties_string.split(' ', 1)[0]
 
-    #     for val in properties_string:
-    #         val = val.split('=', 1)
-    #         if val[1][0] == '=':
-    #             raise ParsingError("Invalid properties have more than one '='")
-    #         else:
-    #             if val[0] == 'color':
-    #                 hub_data[hub_type]['properties']['color'] = val[1]
-    #             elif val[0] == 'zone':
-    #                 hub_data[hub_type]['properties']['zone'] = val[1]
-    #             elif val[0] == 'max_drones':
-    #                 hub_data[hub_type]['properties']['max_drones'] = val[1]
+        for val in properties_string:
+            val = val.split('=', 1)
+            if val[1][0] == '=':
+                raise ParsingError("Invalid properties have more than one '='")
+            else:
+                if val[0] == 'color':
+                    hub_data[hub_type]['properties']['color'] = val[1]
+                elif val[0] == 'zone':
+                    hub_data[hub_type]['properties']['zone'] = val[1]
+                elif val[0] == 'max_drones':
+                    hub_data[hub_type]['properties']['max_drones'] = val[1]
 
 
     def parse_hub(self, line: str, is_start: bool, is_end:bool) -> Dict:

@@ -6,10 +6,10 @@ class ParsingError(Exception):
 
 
 class ParsingFile:
-    
+
     def __init__(self, count_nb_drones: int, count_nb_start_hub: int,
-                count_nb_end_hub: int, hub_data: dict,
-                connection_data: dict) -> None:
+                 count_nb_end_hub: int, hub_data: dict,
+                 connection_data: dict) -> None:
         self.count_nb_drones = count_nb_drones
         self.count_nb_start_hub = count_nb_start_hub
         self.count_nb_end_hub = count_nb_end_hub
@@ -17,7 +17,6 @@ class ParsingFile:
         self.connection_data = connection_data
 
     def parse_line(self, line: str) -> None:
-
         line = line.strip()
 
         if not line or line.startswith('#'):
@@ -31,9 +30,9 @@ class ParsingFile:
 
         if key in ['hub', 'start_hub', 'end_hub']:
             values = val.split('#', 1)[0].strip().split(None, 3)
-            if len(values) > 5:
+            if len(values) > 4:
                 raise ParsingError(f"too many values in {key}")
-            if len(values) < 3 or len(values) > 4:
+            elif len(values) < 3 or len(values) > 4:
                 raise ParsingError(f"Invalid {key}")
             elif key == 'start_hub':
                 self.count_nb_start_hub += 1
@@ -43,13 +42,13 @@ class ParsingFile:
             if len(values) >= 3:
                 if not values[1].strip('-').isdigit() or not values[2].strip('-').isdigit():
                     raise ParsingError("Invalid data, should be hold a digit number")
-                
+
         elif key == 'nb_drones':
             values = val.split('#', 1)[0].strip().split()
             if len(values) != 1:
                 raise ParsingError("Invalid nb_drones data")
             self.count_nb_drones += 1
-            
+
         elif key == 'connection':
             values = val.split('#', 1)[0].strip().split(None, 2)
             if len(values) < 1 or len(values) > 2:
@@ -59,11 +58,14 @@ class ParsingFile:
         line = line.strip()
 
         if not line or line.startswith('#'):
-            returncolor==red
+            return
+
+        if ':' not in line:
+            return
 
         if self.count_nb_drones != 1:
             raise ParsingError("Data most hold 1 nb_drones")
-        
+
         key, val = line.split(':', 1)
         key = key.strip()
         val = val.strip()
@@ -72,42 +74,23 @@ class ParsingFile:
             try:
                 nb = int(val)
                 if nb <= 0:
-                    raise ParsingError ("The value of nb_drones most be a" \
-                    "positive int and non '0'")
+                    raise ParsingError(
+                        "The value of nb_drones most be a positive int and non '0'"
+                    )
             except ValueError:
-                raise ParsingError(f"The value of nb_drones most be an int")
+                raise ParsingError("The value of nb_drones most be an int")
             else:
-                return (nb)
+                return nb
 
-
-    def parse_properties(self, properties_string: str, hub_type: str) -> None:
-        properties_string = properties_string.split('[', 1)[1].strip()
-        properties_string = properties_string.split(']', 1)[0].strip()
-        properties_string = properties_string.split(None, 2)
-        properties_string = properties_string.split(' ', 1)[0]
-
-        for val in properties_string:
-            val = val.split('=', 1)
-            if val[1][0] == '=':
-                raise ParsingError("Invalid properties have more than one '='")
-            else:
-                if val[0] == 'color':
-                    hub_data[hub_type]['properties']['color'] = val[1]
-                elif val[0] == 'zone':
-                    hub_data[hub_type]['properties']['zone'] = val[1]
-                elif val[0] == 'max_drones':
-                    hub_data[hub_type]['properties']['max_drones'] = val[1]
-
-
-    def parse_hub(self, line: str, is_start: bool, is_end:bool) -> Dict:
+    def parse_hub(self, line: str, is_start: bool, is_end: bool, nb_drones: int) -> Dict:
         line = line.strip()
 
         if not line or line.startswith('#'):
             return
-        
+
         if is_start and self.count_nb_start_hub != 1:
             raise ParsingError("Data most hold 1 start_hub")
-        if is_end and self.count_nb_end_hub!= 1:
+        if is_end and self.count_nb_end_hub != 1:
             raise ParsingError("Data most hold 1 end_hub")
 
         key, val = line.split(':', 1)
@@ -115,60 +98,125 @@ class ParsingFile:
         val = val.strip()
         val = val.split('#', 1)[0].strip().split(None, 3)
 
-        name = val[0]
-        if is_start and name not in 'start_hub':
+        if key == "start_hub":
+            is_start = True
+        if key == "end_hub":
+            is_end = True
+
+        if is_start and key != 'start_hub':
             raise ParsingError("Invalid 'start_hub' name")
-        elif is_end and name not in 'end_hub':
+        if is_end and key != 'end_hub':
             raise ParsingError("Invalid 'end_hub' name")
-        elif not is_start and not is_end and name not in 'hub':
+        if not is_start and not is_end and key != 'hub':
             raise ParsingError("Invalid 'hub' name")
+
         try:
             x = int(val[1])
             y = int(val[2])
         except ValueError:
             raise ParsingError("The value 'x, y' in hub most be an int")
-        
+
+        if 'hub' not in self.hub_data:
+            self.hub_data['hub'] = {}
 
         if is_start:
-            self.hub_data['start'] = {'name': name, 'X': x, 'Y': y, 'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}}
+            self.hub_data['hub']['start'] = {
+                'name': val[0], 'X': x, 'Y': y,
+                'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
+            }
         elif is_end:
-            self.hub_data['end'] = {'name': name, 'X': x, 'Y': y, 'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}}
+            self.hub_data['hub']['end'] = {
+                'name': val[0], 'X': x, 'Y': y,
+                'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
+            }
         else:
-            self.hub_data['hub'] = {'name': name, 'X': x, 'Y': y, 'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}}
+            self.hub_data['hub'][val[0]] = {
+                'name': val[0], 'X': x, 'Y': y,
+                'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
+            }
 
         if len(val) == 4:
             properties = val[3]
             if is_start:
-                parse_properties(properties, 'start')
+                self.parse_properties(properties, 'start', nb_drones)
             elif is_end:
-                parse_properties(properties, 'end')
+                self.parse_properties(properties, 'end', nb_drones)
             else:
-                parse_properties(properties, 'hub')
+                self.parse_properties(properties, val[0], nb_drones)
 
-        print(self.hub_data)
+        return self.hub_data
+
+    def parse_properties(self, properties_string: str, hub_type: str, nb_drones: int) -> None:
+        try:
+            properties_string = properties_string.split('[', 1)[1].strip()
+            properties_string = properties_string.split(']', 1)[0].strip()
+            properties_string = properties_string.split(None, 2)
+        except Exception:
+            raise ParsingError("The properties must be inside brackets []")
+
+        for val in properties_string:
+            if '=' not in val:
+                raise ParsingError(f"Invalid property format: '{val}', expected key=value")
+            val = val.split('=', 1)
+            if not val[0]:
+                raise ParsingError("Property key cannot be empty")
+            if not val[1]:
+                raise ParsingError(f"Property '{val[0]}' has no value")
+            if val[0] not in ['color', 'zone', 'max_drones']:
+                raise ParsingError(f"Unknown property: '{val[0]}'")
+            else:
+                if val[0] == 'color':
+                    if val[1] not in ['green', 'red', 'purple',
+                                      'black', 'brown', 'orange', 'maroon',
+                                      'gold', 'darkred', 'violet', 'crimson', 'rainbow']:
+                        raise ParsingError(f"Unknown color: '{val[1]}'")
+                    self.hub_data['hub'][hub_type]['properties']['color'] = val[1]
+                elif val[0] == 'zone':
+                    if val[1] not in ['restricted', 'priority']:
+                        raise ParsingError(f"Unknown zone: {val[1]}")
+                    self.hub_data['hub'][hub_type]['properties']['zone'] = val[1]
+                elif val[0] == 'max_drones':
+                    try:
+                        num = int(val[1])
+                        if num <= 0:
+                            raise ParsingError(f"The value {val[1]}of {val[0]} must be > 0")
+                        elif num > nb_drones:
+                            raise ParsingError(f"The value {val[1]} of {val[0]} must be <= nb_drones")
+                    except ValueError:
+                        raise ParsingError(f"The value {val[1]} of {val[0]} must be an int")
+                    self.hub_data['hub'][hub_type]['properties']['max_drones'] = int(val[1])
 
 
 if __name__ == "__main__":
-    parse = ParsingFile(count_nb_drones=0, count_nb_start_hub=0,
-                        count_nb_end_hub=0, hub_data={}, connection_data={})
+    parse = ParsingFile(
+        count_nb_drones=0,
+        count_nb_start_hub=0,
+        count_nb_end_hub=0,
+        hub_data={},
+        connection_data={}
+    )
 
     with open("maps/challenger/01_the_impossible_dream.txt") as f:
         try:
             for line in f:
                 parse.parse_line(line)
+
             f.seek(0)
+            dic = {}
+            nb_drones = 0
             for line in f:
                 result = parse.parse_drone__count(line)
                 if result is not None:
                     nb_drones = result
                 if 'start_hub' in line:
-                    parse.parse_hub(line, is_start=True, is_end=False)
-                if 'end_hub' in line:
-                    parse.parse_hub(line, is_start=False, is_end=True)
-                if 'hub' in line:
-                    parse.parse_hub(line, is_start=False, is_end=False)
-                
+                    dic.update(parse.parse_hub(line, is_start=True, is_end=False, nb_drones=nb_drones))
+                elif 'end_hub' in line:
+                    dic.update(parse.parse_hub(line, is_start=False, is_end=True, nb_drones=nb_drones))
+                elif 'hub' in line:
+                    dic.update(parse.parse_hub(line, is_start=False, is_end=False, nb_drones=nb_drones))
+
                 # parse.parse_connection(line)
-            print(nb_drones)
+
+            print(dic)
         except Exception as e:
             print(f"Error: {e}")

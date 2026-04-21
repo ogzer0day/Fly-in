@@ -3,7 +3,7 @@
 # by most algorithms. It's intended as a stress test and research challenge.
 # The goal is NOT to validate this map but to push algorithmic limits.
 
-nb_drones: 1
+nb_drones: 30
 
 # === LAYER 0: The Nightmare Begins ===
 start_hub: start  0  0  [color=green max_drones=25]
@@ -64,7 +64,7 @@ hub: priority_dead2 11 -1 [color=black]
 
 # === LAYER 4: The Convergence Hell ===
 # Multiple restricted paths that must merge
-hub: conv_restricted1 12 2 [] #[zone=restricted color=darkred max_drones=1] #;ouhoj #jfg
+hub: conv_restricted1 12 2 [zone=restricted color=darkred max_drones=1] #;ouhoj #jfg
 hub: conv_restricted2 13 2 [zone=restricted color=darkred max_drones=1]
 hub: conv_restricted3 14 2 [zone=restricted color=darkred max_drones=1]
 

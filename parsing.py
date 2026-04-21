@@ -118,7 +118,10 @@ class ParsingFile:
 
         if 'hub' not in self.hub_data:
             self.hub_data['hub'] = {}
-
+        
+        if val[0][0] == '-':
+            raise ParsingError(f"Name '{val[0]}' begin with '-'")
+        
         if is_start:
             self.hub_data['hub']['start'] = {
                 'name': val[0], 'X': x, 'Y': y,
@@ -152,8 +155,11 @@ class ParsingFile:
             properties_string = properties_string.split(']', 1)[0].strip()
             properties_string = properties_string.split(None, 2)
         except Exception:
-            raise ParsingError("The properties must be inside brackets []")
-
+            raise ParsingError(f"The properties {properties_string} must be inside brackets []")
+        
+        if len(properties_string) != len(set(properties_string)):
+            raise ParsingError("Duplicate properties")
+        
         for val in properties_string:
             if '=' not in val:
                 raise ParsingError(f"Invalid property format: '{val}', expected key=value")
@@ -173,18 +179,33 @@ class ParsingFile:
                     self.hub_data['hub'][hub_type]['properties']['color'] = val[1]
                 elif val[0] == 'zone':
                     if val[1] not in ['restricted', 'priority']:
-                        raise ParsingError(f"Unknown zone: {val[1]}")
+                        raise ParsingError(f"Unknown zone: '{val[1]}'")
                     self.hub_data['hub'][hub_type]['properties']['zone'] = val[1]
                 elif val[0] == 'max_drones':
                     try:
                         num = int(val[1])
                         if num <= 0:
-                            raise ParsingError(f"The value {val[1]}of {val[0]} must be > 0")
+                            raise ParsingError(f"The value '{val[1]}' of '{val[0]}' must be > 0")
                         elif num > nb_drones:
-                            raise ParsingError(f"The value {val[1]} of {val[0]} must be <= nb_drones")
+                            raise ParsingError(f"The value '{val[1]}' of '{val[0]}' must be <= nb_drones")
                     except ValueError:
-                        raise ParsingError(f"The value {val[1]} of {val[0]} must be an int")
+                        raise ParsingError(f"The value '{val[1]}' of '{val[0]}' must be an int")
                     self.hub_data['hub'][hub_type]['properties']['max_drones'] = int(val[1])
+
+            
+
+    # def parse_connection(line: str) -> None:
+    #     line = line.strip()
+
+    #     if not line or line.startswith('#'):
+    #         return
+        
+    #     key, val = line.split(':', 1)
+    #     key = key.strip()
+    #     val = val.strip()
+    #     val = val.split('#', 1)[0].strip().split(None, 2)
+
+
 
 
 if __name__ == "__main__":
@@ -214,8 +235,8 @@ if __name__ == "__main__":
                     dic.update(parse.parse_hub(line, is_start=False, is_end=True, nb_drones=nb_drones))
                 elif 'hub' in line:
                     dic.update(parse.parse_hub(line, is_start=False, is_end=False, nb_drones=nb_drones))
-
-                # parse.parse_connection(line)
+                # elif 'connection' in line:
+                #     dic.update(parse.parse_connection(line))
 
             print(dic)
         except Exception as e:

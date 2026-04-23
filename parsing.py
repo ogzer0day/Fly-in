@@ -76,7 +76,8 @@ class ParsingFile:
                 nb = int(val)
                 if nb <= 0:
                     raise ParsingError(
-                        "The value of nb_drones most be a positive int and non '0'"
+                        "The value of nb_drones most be \
+                            a positive int and non '0'"
                     )
             except ValueError:
                 raise ParsingError("The value of nb_drones most be an int")
@@ -127,17 +128,20 @@ class ParsingFile:
         if is_start:
             self.global_dict['hub']['start'] = {
                 'name': val[0], 'X': x, 'Y': y,
-                'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
+                'properties':
+                {'color': None, 'zone': 'normal', 'max_drones': 1}
             }
         elif is_end:
             self.global_dict['hub']['end'] = {
                 'name': val[0], 'X': x, 'Y': y,
-                'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
+                'properties':
+                {'color': None, 'zone': 'normal', 'max_drones': 1}
             }
         else:
             self.global_dict['hub'][val[0]] = {
                 'name': val[0], 'X': x, 'Y': y,
-                'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
+                'properties':
+                {'color': None, 'zone': 'normal', 'max_drones': 1}
             }
 
         if len(val) == 4:
@@ -159,7 +163,8 @@ class ParsingFile:
             properties_string = properties_string.split(None, 2)
         except Exception:
             raise ParsingError(
-                f"The properties {properties_string} must be inside brackets []"
+                f"The properties {properties_string} \
+                    must be inside brackets []"
             )
 
         if len(properties_string) != len(set(properties_string)):
@@ -186,7 +191,8 @@ class ParsingFile:
                     ]
                     if val[1] not in valid_colors:
                         raise ParsingError(f"Unknown color: '{val[1]}'")
-                    self.global_dict['hub'][hub_type]['properties']['color'] = (
+                    self.global_dict['hub'][hub_type]
+                    ['properties']['color'] = (
                         val[1]
                     )
                 elif val[0] == 'zone':
@@ -200,7 +206,8 @@ class ParsingFile:
                         num = int(val[1])
                         if num <= 0:
                             raise ParsingError(
-                                f"The value '{val[1]}' of '{val[0]}' must be > 0"
+                                f"The value '{val[1]}' of \
+                                    '{val[0]}' must be > 0"
                             )
                         elif num > nb_drones:
                             raise ParsingError(
@@ -209,7 +216,8 @@ class ParsingFile:
                             )
                     except ValueError:
                         raise ParsingError(
-                            f"The value '{val[1]}' of '{val[0]}' must be an int"
+                            f"The value '{val[1]}' of \
+                                '{val[0]}' must be an int"
                         )
                     self.global_dict['hub'][hub_type]['properties'][
                         'max_drones'
@@ -247,7 +255,8 @@ class ParsingFile:
 
             if len(metadata) != 2 or metadata[0] != "max_link_capacity":
                 raise ParsingError(
-                    "The metadata syntax has to be 'max_link_capacity=<number>'"
+                    "The metadata \
+                        syntax has to be 'max_link_capacity=<number>'"
                 )
 
             try:

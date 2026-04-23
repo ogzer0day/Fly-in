@@ -8,13 +8,12 @@ class ParsingError(Exception):
 class ParsingFile:
 
     def __init__(self, count_nb_drones: int, count_nb_start_hub: int,
-                 count_nb_end_hub: int, hub_data: dict,
-                 connection_data: dict) -> None:
+                 count_nb_end_hub: int, global_dict: dict) -> None:
         self.count_nb_drones = count_nb_drones
         self.count_nb_start_hub = count_nb_start_hub
         self.count_nb_end_hub = count_nb_end_hub
-        self.hub_data = hub_data
-        self.connection_data = connection_data
+        self.global_dict = global_dict
+
 
     def parse_line(self, line: str) -> None:
         line = line.strip()
@@ -116,24 +115,24 @@ class ParsingFile:
         except ValueError:
             raise ParsingError("The value 'x, y' in hub most be an int")
 
-        if 'hub' not in self.hub_data:
-            self.hub_data['hub'] = {}
+        if 'hub' not in self.global_dict:
+            self.global_dict['hub'] = {}
         
         if val[0][0] == '-':
             raise ParsingError(f"Name '{val[0]}' begin with '-'")
         
         if is_start:
-            self.hub_data['hub']['start'] = {
+            self.global_dict['hub']['start'] = {
                 'name': val[0], 'X': x, 'Y': y,
                 'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
             }
         elif is_end:
-            self.hub_data['hub']['end'] = {
+            self.global_dict['hub']['end'] = {
                 'name': val[0], 'X': x, 'Y': y,
                 'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
             }
         else:
-            self.hub_data['hub'][val[0]] = {
+            self.global_dict['hub'][val[0]] = {
                 'name': val[0], 'X': x, 'Y': y,
                 'properties': {'color': None, 'zone': 'normal', 'max_drones': 1}
             }
@@ -147,7 +146,7 @@ class ParsingFile:
             else:
                 self.parse_properties(properties, val[0], nb_drones)
 
-        return self.hub_data
+        return self.global_dict
 
     def parse_properties(self, properties_string: str, hub_type: str, nb_drones: int) -> None:
         try:
@@ -176,11 +175,11 @@ class ParsingFile:
                                       'black', 'brown', 'orange', 'maroon',
                                       'gold', 'darkred', 'violet', 'crimson', 'rainbow']:
                         raise ParsingError(f"Unknown color: '{val[1]}'")
-                    self.hub_data['hub'][hub_type]['properties']['color'] = val[1]
+                    self.global_dict['hub'][hub_type]['properties']['color'] = val[1]
                 elif val[0] == 'zone':
                     if val[1] not in ['restricted', 'priority']:
                         raise ParsingError(f"Unknown zone: '{val[1]}'")
-                    self.hub_data['hub'][hub_type]['properties']['zone'] = val[1]
+                    self.global_dict['hub'][hub_type]['properties']['zone'] = val[1]
                 elif val[0] == 'max_drones':
                     try:
                         num = int(val[1])
@@ -190,22 +189,58 @@ class ParsingFile:
                             raise ParsingError(f"The value '{val[1]}' of '{val[0]}' must be <= nb_drones")
                     except ValueError:
                         raise ParsingError(f"The value '{val[1]}' of '{val[0]}' must be an int")
-                    self.hub_data['hub'][hub_type]['properties']['max_drones'] = int(val[1])
+                    self.global_dict['hub'][hub_type]['properties']['max_drones'] = int(val[1])
 
             
+    def parse_connection(self, line: str) -> None:
+            line = line.strip()
 
-    # def parse_connection(line: str) -> None:
-    #     line = line.strip()
+            if not line or line.startswith('#'):
+                return
 
-    #     if not line or line.startswith('#'):
-    #         return
-        
-    #     key, val = line.split(':', 1)
-    #     key = key.strip()
-    #     val = val.strip()
-    #     val = val.split('#', 1)[0].strip().split(None, 2)
+            key, val = line.split(':', 1)
+            key = key.strip()
+            val = val.strip()
+            val = val.split('#', 1)[0].strip().split(None, 2)
 
+            z_names = val[0].split('-', 1)
+            if len(z_names) != 2:
+                raise ParsingError("The connection syntax have to be '<name1>-<name2>'")
 
+            if len(z_names) != len(set(z_names)):
+                raise ParsingError(f"Duplicate name {z_names[0]} in one line")
+
+            if len(val) == 2:
+                try:
+                    metadata = val[1].split('[', 1)[1].strip()
+                    metadata = metadata.split(']', 1)[0].strip()
+                    metadata = metadata.split('=', 1)
+                except Exception:
+                    raise ParsingError("The properties must be inside brackets []")
+
+                if len(metadata) != 2 or metadata[0] != "max_link_capacity":
+                    raise ParsingError("The metadata syntax has to be 'max_link_capacity=<number>'")
+
+                try:
+                    max_link_capacity_num = int(metadata[1])
+                    if max_link_capacity_num <= 0:
+                        raise ParsingError("The num of max_link_capacity has to be a positive int")
+                except ValueError:
+                    raise ParsingError("The num of max_link_capacity has to be an int")
+
+                self.global_dict['connections'][(z_names[0], z_names[1])] = {
+                    metadata[0]: max_link_capacity_num
+                }
+
+            names = [
+                hub['name']
+                for hub in self.global_dict['hub'].values()
+            ]
+
+            if z_names[0] not in names:
+                raise ParsingError(f"Hub name '{z_names[0]}' not found")
+            if z_names[1] not in names:
+                raise ParsingError(f"Hub name '{z_names[1]}' not found")
 
 
 if __name__ == "__main__":
@@ -213,8 +248,7 @@ if __name__ == "__main__":
         count_nb_drones=0,
         count_nb_start_hub=0,
         count_nb_end_hub=0,
-        hub_data={},
-        connection_data={}
+        global_dict={'hub': {}, 'connections': {}} 
     )
 
     with open("maps/challenger/01_the_impossible_dream.txt") as f:
@@ -235,8 +269,8 @@ if __name__ == "__main__":
                     dic.update(parse.parse_hub(line, is_start=False, is_end=True, nb_drones=nb_drones))
                 elif 'hub' in line:
                     dic.update(parse.parse_hub(line, is_start=False, is_end=False, nb_drones=nb_drones))
-                # elif 'connection' in line:
-                #     dic.update(parse.parse_connection(line))
+                elif 'connection' in line:
+                    parse.parse_connection(line)
 
             print(dic)
         except Exception as e:

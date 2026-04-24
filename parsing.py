@@ -191,12 +191,11 @@ class ParsingFile:
                     ]
                     if val[1] not in valid_colors:
                         raise ParsingError(f"Unknown color: '{val[1]}'")
-                    self.global_dict['hub'][hub_type]
-                    ['properties']['color'] = (
-                        val[1]
-                    )
+                    self.global_dict['hub'][hub_type]['properties'][
+                        'color'
+                    ] = val[1]
                 elif val[0] == 'zone':
-                    if val[1] not in ['restricted', 'priority']:
+                    if val[1] not in ['normal', 'blocked', 'restricted', 'priority']:
                         raise ParsingError(f"Unknown zone: '{val[1]}'")
                     self.global_dict['hub'][hub_type]['properties']['zone'] = (
                         val[1]
@@ -270,9 +269,21 @@ class ParsingFile:
                     "The num of max_link_capacity has to be an int"
                 )
 
-            self.global_dict['connections'][(z_names[0], z_names[1])] = {
+            if 'connections' not in self.global_dict:
+                self.global_dict['connections'] = []
+
+            self.global_dict['connections'].append(
+            ((z_names[0], z_names[1]), {
                 metadata[0]: max_link_capacity_num
-            }
+            })
+            )
+        
+        elif len(val) == 1:
+           self.global_dict['connections'].append(
+            ((z_names[0], z_names[1]), {
+                'max_link_capacity': None
+            })
+            )
 
         names = [hub['name'] for hub in self.global_dict['hub'].values()]
 
@@ -282,12 +293,24 @@ class ParsingFile:
             raise ParsingError(f"Hub name '{z_names[1]}' not found")
 
 
+    def validate_connection_data(self, data):
+        seen = set()
+
+        for (a, b), _ in data['connections']:
+            key = tuple(sorted((a, b)))
+
+            if key in seen:
+                raise ParsingError(f"Duplicate connection detected: {a}-{b}")
+
+            seen.add(key)
+
+
 if __name__ == "__main__":
     parse = ParsingFile(
         count_nb_drones=0,
         count_nb_start_hub=0,
         count_nb_end_hub=0,
-        global_dict={'hub': {}, 'connections': {}}
+        global_dict={'hub': {}, 'connections': []}
     )
 
     with open("maps/challenger/01_the_impossible_dream.txt") as f:
@@ -302,6 +325,7 @@ if __name__ == "__main__":
                 result = parse.parse_drone__count(line)
                 if result is not None:
                     nb_drones = result
+                    dic.update({'nb_drones': nb_drones})
                 if 'start_hub' in line:
                     dic.update(parse.parse_hub(
                         line, is_start=True, is_end=False, nb_drones=nb_drones
@@ -316,6 +340,8 @@ if __name__ == "__main__":
                     ))
                 elif 'connection' in line:
                     parse.parse_connection(line)
+
+            parse.validate_connection_data(dic)
 
             print(dic)
         except Exception as e:

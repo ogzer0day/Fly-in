@@ -195,7 +195,8 @@ class ParsingFile:
                         'color'
                     ] = val[1]
                 elif val[0] == 'zone':
-                    if val[1] not in ['normal', 'blocked', 'restricted', 'priority']:
+                    zone = ['normal', 'blocked', 'restricted', 'priority']
+                    if val[1] not in zone:
                         raise ParsingError(f"Unknown zone: '{val[1]}'")
                     self.global_dict['hub'][hub_type]['properties']['zone'] = (
                         val[1]
@@ -273,25 +274,22 @@ class ParsingFile:
                 self.global_dict['connections'] = []
 
             self.global_dict['connections'].append(
-            ((z_names[0], z_names[1]), {
-                metadata[0]: max_link_capacity_num
-            })
-            )
-        
+                ((z_names[0], z_names[1]), {
+                    metadata[0]: max_link_capacity_num
+                    })
+                )
         elif len(val) == 1:
-           self.global_dict['connections'].append(
-            ((z_names[0], z_names[1]), {
-                'max_link_capacity': None
-            })
-            )
-
+            self.global_dict['connections'].append(
+                ((z_names[0], z_names[1]), {
+                    'max_link_capacity': None
+                    })
+                )
         names = [hub['name'] for hub in self.global_dict['hub'].values()]
 
         if z_names[0] not in names:
             raise ParsingError(f"Hub name '{z_names[0]}' not found")
         if z_names[1] not in names:
             raise ParsingError(f"Hub name '{z_names[1]}' not found")
-
 
     def validate_connection_data(self, data):
         seen = set()

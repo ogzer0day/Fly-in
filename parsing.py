@@ -282,7 +282,7 @@ class ParsingFile:
         elif len(val) == 1:
             self.global_dict['connections'].append(
                 ((z_names[0], z_names[1]), {
-                    'max_link_capacity': None
+                    'max_link_capacity': 1
                     })
                 )
         names = [hub['name'] for hub in self.global_dict['hub'].values()]

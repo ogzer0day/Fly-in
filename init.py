@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Dict, List, Any
+from collections import defaultdict
 import heapq
 
 class Properties(BaseModel):
@@ -96,19 +97,30 @@ class Map():
 
                 self.edges.append([k, n[0].name, time])
             
-        print(self.edges)
-    #def dijikstra(self, graph: dict[str, List[tuple[Hub, int]]]) -> None:
-    #     min_time = {}
-    #     min_heap = [(0, 0)]
-        
-    #     # while min_heap:
+        self.dijkstra(self.edges)
 
+    def dijkstra(self, edeges: List[List[int]]) -> None:
+        graph = defaultdict(list)
+        for u, v, w in edeges:
+            graph[u].append([v, w])
 
-    #     for x, y in graph.items():
-    #         name = y[0][0].name
-            
-        
+        min_time = {node: float('inf') for node in graph}
+        min_time['start'] = 0
+        min_heap = [(0, 'start')]
 
+        while min_heap:
+            current_dist, node = heapq.heappop(min_heap)
+
+            if current_dist > min_time[node]:
+                continue
+
+            for nei, weight in graph[node]:
+                new_dist = weight + current_dist
+                if new_dist < min_time.get(nei, float('inf')):
+                    min_time[nei] = new_dist
+                    heapq.heappush(min_heap, (new_dist, nei))
+
+        print(min_time)
 
 
 if __name__ == '__main__':

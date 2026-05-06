@@ -161,8 +161,28 @@ class Map():
             residual[(zone2, zone1)] = 0
 
 
-        print(residual)
+        self.bfs(residual, self.start_hub.name, self.end_hub.name)
 
+
+    def bfs(self, residual, start, goal):
+        queue = [start]
+        visited = [start]
+        came_from = {}
+
+        while queue:
+            current = queue.pop(0)
+
+            for curr, nei in residual.keys():
+                if curr == current: 
+                    if nei not in visited and \
+                        residual[(curr, nei)] > 0:
+                        visited.append(nei)
+                        came_from[nei] = current
+                        queue.append(nei)
+
+                        if nei == goal:
+                            return came_from
+        return None
 
 # @dataclass
 # class Drone():

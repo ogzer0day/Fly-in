@@ -111,7 +111,7 @@ class ParsingFile:
         if is_end and key != 'end_hub':
             raise ParsingError(f"In line {count}, invalid 'end_hub' name")
         if not is_start and not is_end and key != 'hub':
-            raise ParsingError(f"In line {count}, invalid 'hub' name")
+            raise ParsingError(f"In line {count}, invalid {key} name")
 
         try:
             x = int(val[1])
@@ -188,7 +188,8 @@ class ParsingFile:
                     valid_colors = [
                         'green', 'red', 'purple', 'black', 'brown',
                         'orange', 'maroon', 'gold', 'darkred',
-                        'violet', 'crimson', 'rainbow'
+                        'violet', 'crimson', 'rainbow', 'blue',
+                        'yellow', 'cyan', 'lime', 'magenta'
                     ]
                     if val[1] not in valid_colors:
                         raise ParsingError(f"In line {count}, unknown color: '{val[1]}'")
@@ -312,7 +313,7 @@ if __name__ == "__main__":
         global_dict={'hub': {}, 'connections': []}
     )
 
-    with open("maps/challenger/01_the_impossible_dream.txt") as f:
+    with open("maps/hard/03_ultimate_challenge.txt") as f:
         try:
             count = 1
             for line in f:

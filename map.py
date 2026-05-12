@@ -8,6 +8,7 @@ class Properties(BaseModel):
     color: str = Field(default=1)
     zone: str = Field(default='normal')
     max_drones: int = Field(default=1, gt=0)
+    turns: int = 1
 
 
 class Hub(BaseModel):
@@ -85,9 +86,7 @@ class Map():
         for zones, capacity in tmp:
                 self.graph[zones[0]].append((self.all_hubs[zones[1]], capacity['max_link_capacity']))
                 self.graph[zones[1]].append((self.all_hubs[zones[0]], capacity['max_link_capacity']))
-        
-        # print(self.graph)
-        
+
         seen = set()
         for k, v in self.graph.items():
             for n in v:
@@ -99,96 +98,54 @@ class Map():
                 if n[0].properties.zone in ['normal', 'priority']:
                     time = 1
                 elif n[0].properties.zone == 'restricted':
+                    n[0].properties.turns = 2
                     time = 2
                 elif n[0].properties.zone == 'blocked':
                     time = 0
 
                 self.edges.append([k, n[0].name, time])
 
-        # print(self.all_hubs)
-        self.capacity(self.all_connections, self.all_hubs)
+        self.dijstra(self.edges, self.start_hub.name, self.end_hub.name)
+       
+    def dijstra(self, eges, start, end):
+        graph = defaultdict(list)
+        for u, v, w in eges:
+            graph[u].append((v, w))
 
-
-    def capacity(self, connections, hubs):
-        connection_capacity: dict = {}
-        zone_capacity: dict = {}
-        residual = {}
-
-        for connection in connections:
-           zones = (connection.hub1_name, connection.hub2_name)
-           connection_capacity[zones] = connection.max_link_capacity
+        min_heap = [(0, [start])]
+        paths = {}
         
-        for k, v in hubs.items():
-            zone_capacity[k] = v.properties.max_drones
-
-        for k, v in connection_capacity.items():
-            zone1, zone2 = k
-            distination = v
-            zone_cap = zone_capacity[zone2]
-
-            real_capacity = min(distination, zone_cap)
-            residual[(zone1, zone2)] = real_capacity
-            residual[(zone2, zone1)] = 0
-
-        # print(residual)
-        self.Furd_Fulkson(residual, self.start_hub.name, self.end_hub.name)
-
-    def dijkstra(self, residual, start, end):
-        
-        min_heap = [(0, start, [start])]
-        visited = {}
-
-        while min_heap:
-            current_cost, node, path = heapq.heappop(min_heap)
-
-            if node in visited and visited[node] <= current_cost:
-                continue
-
-            visited[node] = current_cost
+        while min_heap and len(paths) < 2:
+            min_cost, path = heapq.heappop(min_heap)
+            node = path[-1]
             
             if node == end:
-                bottleneck = float('inf')
-                for i in range(len(path) - 1):
-                    u, v = path[i], path[i + 1]
-                    bottleneck = min(bottleneck, residual[(u, v)])
-                print(path)
-                return (path, current_cost, bottleneck)
-            
-            for (u, v), capacity in residual.items():
-                if u == node and capacity > 0 and v not in visited:
-                    edge_cost = 1
-                    if v in self.all_hubs and self.all_hubs[v].properties.zone == 'restricted':
-                        edge_cost = 2
-                    
-                    new_cost = current_cost + edge_cost
-                    heapq.heappush(min_heap, (new_cost, v, path + [v]))
+                if min_cost in paths:
+                    paths[min_cost] += path
+                else:
+                    paths[min_cost] = path
+                continue
 
-        return (None, None, None)
+            for nei, weight in graph[node]:
 
-    def Furd_Fulkson(self, residual, start, end):
+                if weight == 0:
+                    continue
 
-        total_flow = 0
-        total_cost = 0
-        paths = []
+                new_cost = min_cost + weight
+                heapq.heappush(min_heap, (new_cost, path + [nei]))
+        
+        paths = paths.values()
 
-        while True:
-            path, cost, botteleneck = self.dijkstra(residual, start, end)
-            
-            if not path:
-                break
-            
-            i = 0
-            for i in range(len(path) - 1):
-                u, v = path[i], path[i + 1]
-                residual[(u, v)] -= botteleneck
-                residual[(v, u)] += botteleneck
+        drones = []
+        i: int = 0
 
-            total_flow += botteleneck
-            total_cost += botteleneck * cost
-            paths.append(path)
+        for i in range(self.total_nb_drones):
+            drones.append(Drone(i+1, [], self.start_hub.name))
 
-        print(total_flow, total_cost, paths)
 
+        sim = Simulation(drones, list(paths), self.all_hubs)
+        sim.init_path_drones()
+        sim.simulation()
     
 class Drone:
     def __init__(self, id, assigned_path, current_position):
@@ -197,28 +154,84 @@ class Drone:
         self.current_position = current_position
         self.position_index = 0
         self.status = 'waiting'
+        self.turnes = 0
 
+class Simulation():
+    def __init__(self, drones: List[Drone], paths: List, hubs):
+        self.drones = drones
+        self.turns = 0
+        self.paths = paths
+        self.hubs = hubs
+        self.is_end = {drone.id: False for drone in self.drones}
+        self.zone_size = {hub: 0 for hub in hubs.keys()}
+        
+
+    def init_path_drones(self):
+        i: int = 0
+        len_path = len(self.paths)
+        for i in range(len(self.drones)):
+            self.drones[i].id = i + 1
+            self.drones[i].assigned_path = self.paths[(i+1) % len_path]
+            # print(self.drones[i].assigned_path)
+            self.drones[i].current_position = self.drones[i].assigned_path[0]
+            self.drones[i].position_index = 0
+            self.drones[i].status = 'start'
+
+    def check_move(self, hub):
+        zone = self.hubs[hub]
+        max_drones = zone.properties.max_drones
+        if self.zone_size[hub] == max_drones:
+            return 0
+        return 1
+
+
+    def move_drones(self, drone):
+        if drone.position_index >= len(drone.assigned_path) - 1:
+            if not self.is_end[drone.id]:
+                self.is_end[drone.id] = True
+                self.zone_size[drone.current_position] -= 1
+            return
+
+        next_pos = drone.assigned_path[drone.position_index + 1]
+
+        if not self.check_move(next_pos):
+            return
+
+        if drone.turnes > self.turns:
+            return
+
+        self.zone_size[drone.current_position] -= 1
+        self.zone_size[next_pos] += 1
+        
+
+        n_z = self.hubs[next_pos]
+        drone.turnes = n_z.properties.turns + self.turns
+        drone.position_index += 1
+        drone.current_position = next_pos
+
+
+    def simulation(self):
+        for drone in self.drones:
+            self.zone_size[drone.current_position] += 1
+
+        while not all(self.is_end.values()):
+            output = " ".join([f"ID{drone.id}-{drone.current_position}\n" for drone in self.drones])
+            for drone in self.drones:
+                self.move_drones(drone)
+            
+            
+            print(f"Turn {self.turns}:\n {output}\n")
+
+            self.turns += 1
+           
 
 
 
 if __name__ == '__main__':
-    data = data = {
-    'nb_drones': 30,
-    'hub': {
-        'start': {'name': 'start', 'X': 0, 'Y': 0, 'properties': {'color': 'green', 'zone': 'normal', 'max_drones': 25}},
-        'hub_a': {'name': 'hub_a', 'X': 1, 'Y': 0, 'properties': {'color': 'red', 'zone': 'normal', 'max_drones': 5}},
-        'hub_b': {'name': 'hub_b', 'X': 2, 'Y': 0, 'properties': {'color': 'red', 'zone': 'normal', 'max_drones': 5}},
-        'hub_c': {'name': 'hub_c', 'X': 3, 'Y': 0, 'properties': {'color': 'purple', 'zone': 'normal', 'max_drones': 10}},
-        'end': {'name': 'impossible_goal', 'X': 4, 'Y': 0, 'properties': {'color': 'rainbow', 'zone': 'normal', 'max_drones': 25}}
-    },
-    'connections': [
-        (('start', 'hub_a'), {'max_link_capacity': 3}),  
-        (('start', 'hub_b'), {'max_link_capacity': 3}),  
-        (('hub_a', 'hub_c'), {'max_link_capacity': 5}),  
-        (('hub_b', 'hub_c'), {'max_link_capacity': 5}),
-        (('hub_c', 'impossible_goal'), {'max_link_capacity': 10})
-    ]
-}
-    # data = {'nb_drones': 30, 'hub': {'start': {'name': 'start', 'X': 0, 'Y': 0, 'properties': {'color': 'green', 'zone': 'normal', 'max_drones': 25}}, 'gate_hell1': {'name': 'gate_hell1', 'X': 1, 'Y': 0, 'properties': {'color': 'red', 'zone': 'normal', 'max_drones': 1}}, 'gate_hell2': {'name': 'gate_hell2', 'X': 2, 'Y': 0, 'properties': {'color': 'red', 'zone': 'normal', 'max_drones': 1}}, 'gate_hell3': {'name': 'gate_hell3', 'X': 3, 'Y': 0, 'properties': {'color': 'red', 'zone': 'normal', 'max_drones': 1}}, 'gate_hell4': {'name': 'gate_hell4', 'X': 4, 'Y': 0, 'properties': {'color': 'red', 'zone': 'normal', 'max_drones': 1}}, 'gate_hell5': {'name': 'gate_hell5', 'X': 5, 'Y': 0, 'properties': {'color': 'red', 'zone': 'normal', 'max_drones': 1}}, 'maze_trap_a1': {'name': 'maze_trap_a1', 'X': 1, 'Y': 1, 'properties': {'color': 'purple', 'zone': 'normal', 'max_drones': 1}}, 'maze_trap_a2': {'name': 'maze_trap_a2', 'X': 2, 'Y': 1, 'properties': {'color': 'purple', 'zone': 'normal', 'max_drones': 1}}, 'maze_trap_a3': {'name': 'maze_trap_a3', 'X': 3, 'Y': 1, 'properties': {'color': 'purple', 'zone': 'normal', 'max_drones': 1}}, 'maze_dead_a': {'name': 'maze_dead_a', 'X': 4, 'Y': 1, 'properties': {'color': 'black', 'zone': 'normal', 'max_drones': 1}}, 'maze_trap_b1': {'name': 'maze_trap_b1', 'X': 1, 'Y': -1, 'properties': {'color': 'purple', 'zone': 'normal', 'max_drones': 1}}, 'maze_trap_b2': {'name': 'maze_trap_b2', 'X': 2, 'Y': -1, 'properties': {'color': 'purple', 'zone': 'normal', 'max_drones': 1}}, 'maze_trap_b3': {'name': 'maze_trap_b3', 'X': 3, 'Y': -1, 'properties': {'color': 'purple', 'zone': 'normal', 'max_drones': 1}}, 'maze_dead_b': {'name': 'maze_dead_b', 'X': 4, 'Y': -1, 'properties': {'color': 'black', 'zone': 'normal', 'max_drones': 1}}, 'maze_loop1': {'name': 'maze_loop1', 'X': 1, 'Y': 2, 'properties': {'color': 'brown', 'zone': 'restricted', 'max_drones': 1}}, 'maze_loop2': {'name': 'maze_loop2', 'X': 2, 'Y': 2, 'properties': {'color': 'brown', 'zone': 'restricted', 'max_drones': 1}}, 'maze_loop3': {'name': 'maze_loop3', 'X': 3, 'Y': 2, 'properties': {'color': 'brown', 'zone': 'restricted', 'max_drones': 1}}, 'maze_loop4': {'name': 'maze_loop4', 'X': 4, 'Y': 2, 'properties': {'color': 'brown', 'zone': 'restricted', 'max_drones': 1}}, 'maze_loop5': {'name': 'maze_loop5', 'X': 5, 'Y': 2, 'properties': {'color': 'brown', 'zone': 'restricted', 'max_drones': 1}}, 'maze_loop6': {'name': 'maze_loop6', 'X': 5, 'Y': 1, 'properties': {'color': 'brown', 'zone': 'restricted', 'max_drones': 1}}, 'micro_gate1': {'name': 'micro_gate1', 'X': 6, 'Y': 0, 'properties': {'color': 'orange', 'zone': 'normal', 'max_drones': 1}}, 'micro_gate2': {'name': 'micro_gate2', 'X': 7, 'Y': 0, 'properties': {'color': 'orange', 'zone': 'normal', 'max_drones': 1}}, 'micro_gate3': {'name': 'micro_gate3', 'X': 8, 'Y': 0, 'properties': {'color': 'orange', 'zone': 'normal', 'max_drones': 1}}, 'overflow_hell1': {'name': 'overflow_hell1', 'X': 6, 'Y': 1, 'properties': {'color': 'maroon', 'zone': 'restricted', 'max_drones': 2}}, 'overflow_hell2': {'name': 'overflow_hell2', 'X': 7, 'Y': 1, 'properties': {'color': 'maroon', 'zone': 'restricted', 'max_drones': 2}}, 'overflow_hell3': {'name': 'overflow_hell3', 'X': 8, 'Y': 1, 'properties': {'color': 'maroon', 'zone': 'restricted', 'max_drones': 2}}, 'overflow_hell4': {'name': 'overflow_hell4', 'X': 6, 'Y': -1, 'properties': {'color': 'maroon', 'zone': 'restricted', 'max_drones': 2}}, 'overflow_hell5': {'name': 'overflow_hell5', 'X': 7, 'Y': -1, 'properties': {'color': 'maroon', 'zone': 'restricted', 'max_drones': 2}}, 'overflow_hell6': {'name': 'overflow_hell6', 'X': 8, 'Y': -1, 'properties': {'color': 'maroon', 'zone': 'restricted', 'max_drones': 2}}, 'false_hope1': {'name': 'false_hope1', 'X': 9, 'Y': 0, 'properties': {'color': 'gold', 'zone': 'priority', 'max_drones': 3}}, 'false_hope2': {'name': 'false_hope2', 'X': 10, 'Y': 0, 'properties': {'color': 'gold', 'zone': 'priority', 'max_drones': 2}}, 'false_hope3': {'name': 'false_hope3', 'X': 11, 'Y': 0, 'properties': {'color': 'gold', 'zone': 'priority', 'max_drones': 1}}, 'priority_trap1': {'name': 'priority_trap1', 'X': 9, 'Y': 1, 'properties': {'color': 'gold', 'zone': 'priority', 'max_drones': 1}}, 'priority_trap2': {'name': 'priority_trap2', 'X': 10, 'Y': 1, 'properties': {'color': 'gold', 'zone': 'priority', 'max_drones': 1}}, 'priority_dead': {'name': 'priority_dead', 'X': 11, 'Y': 1, 'properties': {'color': 'black', 'zone': 'normal', 'max_drones': 1}}, 'priority_trap3': {'name': 'priority_trap3', 'X': 9, 'Y': -1, 'properties': {'color': 'gold', 'zone': 'priority', 'max_drones': 1}}, 'priority_trap4': {'name': 'priority_trap4', 'X': 10, 'Y': -1, 'properties': {'color': 'gold', 'zone': 'priority', 'max_drones': 1}}, 'priority_dead2': {'name': 'priority_dead2', 'X': 11, 'Y': -1, 'properties': {'color': 'black', 'zone': 'normal', 'max_drones': 1}}, 'conv_restricted1': {'name': 'conv_restricted1', 'X': 12, 'Y': 2, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'conv_restricted2': {'name': 'conv_restricted2', 'X': 13, 'Y': 2, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'conv_restricted3': {'name': 'conv_restricted3', 'X': 14, 'Y': 2, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'conv_restricted4': {'name': 'conv_restricted4', 'X': 12, 'Y': 0, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'conv_restricted5': {'name': 'conv_restricted5', 'X': 13, 'Y': 0, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'conv_restricted6': {'name': 'conv_restricted6', 'X': 14, 'Y': 0, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'conv_restricted7': {'name': 'conv_restricted7', 'X': 12, 'Y': -2, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'conv_restricted8': {'name': 'conv_restricted8', 'X': 13, 'Y': -2, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'conv_restricted9': {'name': 'conv_restricted9', 'X': 14, 'Y': -2, 'properties': {'color': 'darkred', 'zone': 'restricted', 'max_drones': 1}}, 'final_merge': {'name': 'final_merge', 'X': 15, 'Y': 0, 'properties': {'color': 'violet', 'zone': 'normal', 'max_drones': 5}}, 'final_torture1': {'name': 'final_torture1', 'X': 16, 'Y': 0, 'properties': {'color': 'crimson', 'zone': 'normal', 'max_drones': 2}}, 'final_torture2': {'name': 'final_torture2', 'X': 17, 'Y': 0, 'properties': {'color': 'crimson', 'zone': 'normal', 'max_drones': 1}}, 'final_torture3': {'name': 'final_torture3', 'X': 18, 'Y': 0, 'properties': {'color': 'crimson', 'zone': 'normal', 'max_drones': 1}}, 'final_torture4': {'name': 'final_torture4', 'X': 19, 'Y': 0, 'properties': {'color': 'crimson', 'zone': 'normal', 'max_drones': 1}}, 'final_torture5': {'name': 'final_torture5', 'X': 20, 'Y': 0, 'properties': {'color': 'crimson', 'zone': 'normal', 'max_drones': 1}}, 'end': {'name': 'impossible_goal', 'X': 21, 'Y': 0, 'properties': {'color': 'rainbow', 'zone': 'normal', 'max_drones': 25}}}, 'connections': [(('start', 'gate_hell1'), {'max_link_capacity': 1}), (('gate_hell1', 'gate_hell2'), {'max_link_capacity': 1}), (('gate_hell2', 'gate_hell3'), {'max_link_capacity': 1}), (('gate_hell3', 'gate_hell4'), {'max_link_capacity': 1}), (('gate_hell4', 'gate_hell5'), {'max_link_capacity': 1}), (('gate_hell1', 'maze_trap_a1'), {'max_link_capacity': 1}), (('gate_hell2', 'maze_trap_b1'), {'max_link_capacity': 1}), (('gate_hell3', 'maze_loop1'), {'max_link_capacity': 1}), (('maze_trap_a1', 'maze_trap_a2'), {'max_link_capacity': 1}), (('maze_trap_a2', 'maze_trap_a3'), {'max_link_capacity': 1}), (('maze_trap_a3', 'maze_dead_a'), {'max_link_capacity': 1}), (('maze_trap_b1', 'maze_trap_b2'), {'max_link_capacity': 1}), (('maze_trap_b2', 'maze_trap_b3'), {'max_link_capacity': 1}), (('maze_trap_b3', 'maze_dead_b'), {'max_link_capacity': 1}), (('maze_loop1', 'maze_loop2'), {'max_link_capacity': 1}), (('maze_loop2', 'maze_loop3'), {'max_link_capacity': 1}), (('maze_loop3', 'maze_loop4'), {'max_link_capacity': 1}), (('maze_loop4', 'maze_loop5'), {'max_link_capacity': 1}), (('maze_loop5', 'maze_loop6'), {'max_link_capacity': 1}), (('maze_loop6', 'maze_loop1'), {'max_link_capacity': 1}), (('maze_trap_a2', 'micro_gate1'), {'max_link_capacity': 1}), (('maze_trap_b2', 'micro_gate1'), {'max_link_capacity': 1}), (('maze_loop3', 'micro_gate2'), {'max_link_capacity': 1}), (('gate_hell5', 'micro_gate1'), {'max_link_capacity': 1}), (('micro_gate1', 'micro_gate2'), {'max_link_capacity': 1}), (('micro_gate2', 'micro_gate3'), {'max_link_capacity': 1}), (('micro_gate1', 'overflow_hell1'), {'max_link_capacity': 1}), (('micro_gate2', 'overflow_hell2'), {'max_link_capacity': 1}), (('micro_gate3', 'overflow_hell3'), {'max_link_capacity': 1}), (('micro_gate1', 'overflow_hell4'), {'max_link_capacity': 1}), (('micro_gate2', 'overflow_hell5'), {'max_link_capacity': 1}), (('micro_gate3', 'overflow_hell6'), {'max_link_capacity': 1}), (('overflow_hell1', 'overflow_hell2'), {'max_link_capacity': 1}), (('overflow_hell2', 'overflow_hell3'), {'max_link_capacity': 1}), (('overflow_hell4', 'overflow_hell5'), {'max_link_capacity': 1}), (('overflow_hell5', 'overflow_hell6'), {'max_link_capacity': 1}), (('overflow_hell3', 'false_hope1'), {'max_link_capacity': 1}), (('overflow_hell6', 'false_hope1'), {'max_link_capacity': 1}), (('micro_gate3', 'false_hope1'), {'max_link_capacity': 1}), (('false_hope1', 'false_hope2'), {'max_link_capacity': 1}), (('false_hope2', 'false_hope3'), {'max_link_capacity': 1}), (('false_hope1', 'priority_trap1'), {'max_link_capacity': 1}), (('false_hope2', 'priority_trap2'), {'max_link_capacity': 1}), (('false_hope3', 'priority_dead'), {'max_link_capacity': 1}), (('false_hope1', 'priority_trap3'), {'max_link_capacity': 1}), (('false_hope2', 'priority_trap4'), {'max_link_capacity': 1}), (('false_hope3', 'priority_dead2'), {'max_link_capacity': 1}), (('priority_trap1', 'priority_trap2'), {'max_link_capacity': 1}), (('priority_trap3', 'priority_trap4'), {'max_link_capacity': 1}), (('false_hope3', 'conv_restricted1'), {'max_link_capacity': 1}), (('false_hope3', 'conv_restricted4'), {'max_link_capacity': 1}), (('false_hope3', 'conv_restricted7'), {'max_link_capacity': 1}), (('conv_restricted1', 'conv_restricted2'), {'max_link_capacity': 1}), (('conv_restricted2', 'conv_restricted3'), {'max_link_capacity': 1}), (('conv_restricted4', 'conv_restricted5'), {'max_link_capacity': 1}), (('conv_restricted5', 'conv_restricted6'), {'max_link_capacity': 1}), (('conv_restricted7', 'conv_restricted8'), {'max_link_capacity': 1}), (('conv_restricted8', 'conv_restricted9'), {'max_link_capacity': 1}), (('conv_restricted3', 'final_merge'), {'max_link_capacity': 1}), (('conv_restricted6', 'final_merge'), {'max_link_capacity': 1}), (('conv_restricted9', 'final_merge'), {'max_link_capacity': 1}), (('final_merge', 'final_torture1'), {'max_link_capacity': 1}), (('final_torture1', 'final_torture2'), {'max_link_capacity': 1}), (('final_torture2', 'final_torture3'), {'max_link_capacity': 1}), (('final_torture3', 'final_torture4'), {'max_link_capacity': 1}), (('final_torture4', 'final_torture5'), {'max_link_capacity': 1}), (('final_torture5', 'impossible_goal'), {'max_link_capacity': 1}), (('overflow_hell1', 'conv_restricted1'), {'max_link_capacity': 1}), (('overflow_hell4', 'conv_restricted7'), {'max_link_capacity': 1}), (('priority_trap1', 'conv_restricted4'), {'max_link_capacity': 1})]}
+
+    data = {'nb_drones': 12, 'hub': {'start': {'name': 'start', 'X': 0, 'Y': 0, 'properties': {'color': 'green', 'zone': 'normal', 'max_drones': 12}}, 'gate1': {'name': 'gate1', 'X': 1, 'Y': 0, 'properties': {'color': 'orange', 'zone': 'normal', 'max_drones': 1}}, 'gate2': {'name': 'gate2', 'X': 2, 'Y': 0, 'properties': {'color': 'orange', 'zone': 'normal', 'max_drones': 1}}, 'gate3': {'name': 'gate3', 'X': 3, 'Y': 0, 'properties': {'color': 'orange', 'zone': 'normal', 'max_drones': 1}}, 'waiting_area1': {'name': 'waiting_area1', 'X': 1, 'Y': 1, 'properties': {'color': 'blue', 'zone': 'normal', 'max_drones': 4}}, 'waiting_area2': {'name': 'waiting_area2', 'X': 2, 'Y': 1, 'properties': {'color': 'blue', 'zone': 'normal', 'max_drones': 4}}, 'waiting_area3': {'name': 'waiting_area3', 'X': 3, 'Y': 1, 'properties': {'color': 'blue', 'zone': 'normal', 'max_drones': 4}}, 'restricted_tunnel1': {'name': 'restricted_tunnel1', 'X': 4, 'Y': 0, 'properties': {'color': 'red', 'zone': 'restricted', 'max_drones': 2}}, 'restricted_tunnel2': {'name': 'restricted_tunnel2', 'X': 5, 'Y': 0, 'properties': {'color': 'red', 'zone': 'restricted', 'max_drones': 2}}, 'restricted_tunnel3': {'name': 'restricted_tunnel3', 'X': 6, 'Y': 0, 'properties': {'color': 'red', 'zone': 'restricted', 'max_drones': 2}}, 'priority_bypass1': {'name': 'priority_bypass1', 'X': 4, 'Y': 1, 'properties': {'color': 'cyan', 'zone': 'priority', 'max_drones': 3}}, 'priority_bypass2': {'name': 'priority_bypass2', 'X': 5, 'Y': 1, 'properties': {'color': 'cyan', 'zone': 'priority', 'max_drones': 3}}, 'convergence': {'name': 'convergence', 'X': 7, 'Y': 0, 'properties': {'color': 'yellow', 'zone': 'normal', 'max_drones': 6}}, 'final_bottleneck': {'name': 'final_bottleneck', 'X': 8, 'Y': 0, 'properties': {'color': 'orange', 'zone': 'normal', 'max_drones': 3}}, 'end': {'name': 'goal', 'X': 9, 'Y': 0, 'properties': {'color': 'green', 'zone': 'normal', 'max_drones': 12}}}, 'connections': [(('start', 'gate1'), {'max_link_capacity': 1}), (('gate1', 'gate2'), {'max_link_capacity': 1}), (('gate2', 'gate3'), {'max_link_capacity': 1}), (('gate1', 'waiting_area1'), {'max_link_capacity': 1}), (('gate2', 'waiting_area2'), {'max_link_capacity': 1}), (('gate3', 'waiting_area3'), {'max_link_capacity': 1}), (('waiting_area1', 'waiting_area2'), {'max_link_capacity': 1}), (('waiting_area2', 'waiting_area3'), {'max_link_capacity': 1}), (('gate3', 'restricted_tunnel1'), {'max_link_capacity': 1}), (('restricted_tunnel1', 'restricted_tunnel2'), {'max_link_capacity': 1}), (('restricted_tunnel2', 'restricted_tunnel3'), {'max_link_capacity': 1}), (('restricted_tunnel3', 'convergence'), {'max_link_capacity': 1}), (('waiting_area1', 'priority_bypass1'), {'max_link_capacity': 1}), (('priority_bypass1', 'priority_bypass2'), {'max_link_capacity': 1}), (('priority_bypass2', 'convergence'), {'max_link_capacity': 1}), (('convergence', 'final_bottleneck'), {'max_link_capacity': 1}), (('final_bottleneck', 'goal'), {'max_link_capacity': 1}), (('waiting_area3', 'convergence'), {'max_link_capacity': 1})]}
+
+
+
 
     map = Map(data)

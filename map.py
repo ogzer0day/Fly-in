@@ -4,73 +4,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 import heapq
 
-    # def find_multiple_paths(self):
-    #     """Find multiple diverse paths from start to end"""
-    #     graph = defaultdict(list)
-    #     for u, v, w in self.edges:
-    #         graph[u].append((v, w))
-        
-    #     self.paths = []
-        
-    #     # Find k-shortest paths (we'll find 5 to have good diversity)
-    #     min_heap = [(0, [self.start_hub.name])]
-    #     visited_paths = set()
-        
-    #     while min_heap and len(self.paths) < 5:
-    #         total_time, path = heapq.heappop(min_heap)
-    #         node = path[-1]
-            
-    #         # Avoid duplicate paths
-    #         path_tuple = tuple(path)
-    #         if path_tuple in visited_paths:
-    #             continue
-    #         visited_paths.add(path_tuple)
-            
-    #         if node == self.end_hub.name:
-    #             self.paths.append((total_time, path))
-    #             continue
-            
-    #         # Explore neighbors
-    #         for neighbor, weight in graph[node]:
-    #             if neighbor not in path:  # Avoid cycles
-    #                 new_path = path + [neighbor]
-    #                 new_time = total_time + weight
-    #                 heapq.heappush(min_heap, (new_time, new_path))
-        
-    #     print(f"Found {len(self.paths)} paths:")
-    #     for i, (time, path) in enumerate(self.paths):
-    #         print(f"  Path {i+1}: {' → '.join(path)} (Time: {time})\n")
-    #     print('\n')
-    
-    
-    #     def get_path_bottleneck_capacity(self, path):
-    #         """Find minimum capacity (bottleneck) along a path"""
-    #         min_capacity = float('inf')
-    #         for hub_name in path:
-    #             hub = self.all_hubs[hub_name]
-    #             min_capacity = min(min_capacity, hub.properties.max_drones)
-    #         return min_capacity
-
-    #     def allocate_drones_to_paths(self):
-    #         """Allocate drones across paths respecting capacity limits"""
-    #         drone_allocation = {i: [] for i in range(len(self.paths))}
-            
-    #         # For each drone, assign to a path based on capacity availability
-    #         for drone_id in range(1, self.total_nb_drones + 1):
-    #             # Find path with available capacity
-    #             best_path_idx = 0
-    #             for path_idx, (time, path) in enumerate(self.paths):
-    #                 capacity = self.get_path_bottleneck_capacity(path)
-    #                 current_load = len(drone_allocation[path_idx])
-                    
-    #                 if current_load < capacity:
-    #                     best_path_idx = path_idx
-    #                     break
-                
-    #             drone_allocation[best_path_idx].append(drone_id)
-            
-    #         return drone_allocation
-
 class Properties(BaseModel):
     color: str = Field(default=1)
     zone: str = Field(default='normal')
@@ -221,135 +154,21 @@ class Map():
         return bottleneck
     
     
-    # def allocate_drones_to_paths(self):
+    def allocate_drones_to_paths(self):
+        drone_assignments = {i: [] for i in range(len(self.paths))}
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-#     def allocate_and_simulate(self):
-#         """Main orchestration: allocate drones and run simulation"""
-#         if not self.paths:
-#             print("No paths found!")
-#             return
-        
-#         drone_allocation = self.allocate_drones_to_paths()
-        
-#         print("\nDrone Allocation:")
-#         for path_idx, (time, path) in enumerate(self.paths):
-#             drone_ids = drone_allocation[path_idx]
-#             if drone_ids:
-#                 print(f"  Path {path_idx+1}: {len(drone_ids)} drones {drone_ids}")
-        
-#         # Create simulation
-#         drones = []
-#         for drone_id in range(1, self.total_nb_drones + 1):
-#             # Find which path this drone is assigned to
-#             for path_idx, (time, path) in enumerate(self.paths):
-#                 if drone_id in drone_allocation[path_idx]:
-#                     drones.append(Drone(drone_id, path, self.start_hub.name))
-#                     break
-        
-#         sim = Simulation(drones, self.all_hubs, self.paths)
-#         final_turn = sim.simulation()
-#         print(f"\n✓ All drones reached goal in {final_turn} turns!")
-
-
-
-# #         sim = Simulation(drones, list(paths), self.all_hubs)
-# #         sim.init_path_drones()
-# #         sim.simulation()
+        for drone_id in range(1, self.total_nb_drones + 1):
+            #count how many drones already assigned to this path
+            for i, (cost, path) in enumerate(self.paths):
+                path_bottleneck = self.get_path_bottleneck_capacity(path)
+                current_load = len(drone_assignments[i])
+                
+                if current_load < path_bottleneck:
+                    drone_assignments[i].append(drone_id)
+                    break
+                    
+        return drone_assignments
     
-# class Drone:
-#     def __init__(self, id, assigned_path, current_position):
-#         self.id = id
-#         self.assigned_path = assigned_path  # List of hub names
-#         self.current_position = current_position
-#         self.position_index = 0
-#         self.status = 'moving'
-#         self.arrival_turn = None
-
-# class Simulation():
-#     def __init__(self, drones: List[Drone], hubs, paths):
-#         self.drones = drones
-#         self.turns = 0
-#         self.hubs = hubs
-#         self.paths = paths
-#         self.is_end = {drone.id: False for drone in self.drones}
-#         self.hub_occupancy = {hub: 0 for hub in hubs.keys()}
-#         self.connection_usage = defaultdict(int)  # Track connection usage
-
-#     def get_hub_capacity(self, hub_name):
-#         """Get max drones allowed in a hub"""
-#         return self.hubs[hub_name].properties.max_drones
-
-#     def check_hub_capacity(self, hub_name):
-#         """Check if hub has space for another drone"""
-#         return self.hub_occupancy[hub_name] < self.get_hub_capacity(hub_name)
-
-#     def move_drones(self):
-#         """Move each drone based on their path, respecting constraints"""
-#         for drone in self.drones:
-#             if self.is_end[drone.id]:
-#                 continue
-            
-#             # Check if drone has reached the end
-#             if drone.position_index >= len(drone.assigned_path) - 1:
-#                 self.is_end[drone.id] = True
-#                 self.hub_occupancy[drone.current_position] -= 1
-#                 if drone.arrival_turn is None:
-#                     drone.arrival_turn = self.turns
-#                 continue
-            
-#             # Try to move to next hub
-#             next_hub = drone.assigned_path[drone.position_index + 1]
-            
-#             # Check if next hub has capacity
-#             if not self.check_hub_capacity(next_hub):
-#                 continue
-            
-#             # Move drone
-#             self.hub_occupancy[drone.current_position] -= 1
-#             self.hub_occupancy[next_hub] += 1
-#             drone.current_position = next_hub
-#             drone.position_index += 1
-
-#     def simulation(self):
-#         """Run the simulation until all drones reach the goal"""
-#         # Initialize: add all drones to start hub
-#         for drone in self.drones:
-#             self.hub_occupancy[drone.current_position] += 1
-        
-#         print("\n" + "="*60)
-#         print("SIMULATION START")
-#         print("="*60)
-        
-#         max_turns = 200  # Safety limit
-        
-#         while not all(self.is_end.values()) and self.turns < max_turns:
-#             # Display turn info
-#             status = " | ".join([f"D{drone.id}:{drone.current_position}" for drone in self.drones])
-#             print(f"Turn {self.turns}: {status}")
-            
-#             # Move drones
-#             self.move_drones()
-#             self.turns += 1
-        
-#         print("="*60)
-#         print("SIMULATION END")
-#         print("="*60)
-        
-#         # Return the maximum turn when any drone reached goal
-#         max_arrival = max([d.arrival_turn for d in self.drones if d.arrival_turn])
-#         return max_arrival
 
            
 

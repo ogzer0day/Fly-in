@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Dict, List, Any, Tuple
 from parsing import ParsingError
-
+from algorithm import Algos
 
 class Properties(BaseModel):
     color: str = Field(default=1)
@@ -28,12 +28,12 @@ class Map():
         self.total_nb_drones = 0
         self.all_hubs: Dict[str, Hub] = {}
         self.all_connections: List[Connection] = []
-        self.start_hub: Hub | 1 = 1
-        self.end_hub: Hub | 1 = 1
+        self.start_hub = 1
+        self.end_hub = 1
         self.regular_hubs: Dict[str, Hub] = {}
-        self.graph: Dict[str, List[tuple[Hub, int]]] = {}
+        self.graph: Dict[str, List[Tuple[Hub, int]]] = {}
         self.edges: List[List[int]] = []
-        self.paths: List[Tuple[int, List[str]]] 
+        self.paths: List[Tuple[int, List[str]]] = []
         
         self.init_data(data)
 
@@ -42,8 +42,8 @@ class Map():
         self.total_nb_drones = data['nb_drones']
         
         st_hub = data['hub']['start']
-        if (self.total_nb_drones < st_hub) or (self.total_nb_drones > st_hub):
-            raise ParsingError("max_drones in start_hub must be the same on total_nb_drones.")
+        if self.total_nb_drones != st_hub['properties']['max_drones']:
+            raise ParsingError("max_drones in start_hub must be the same as total_nb_drones.")
         
         self.start_hub = Hub(
             name=st_hub['name'],
@@ -107,3 +107,7 @@ class Map():
                     time = 0
 
                 self.edges.append([k, n[0].name, time])
+                
+        alg = Algos(self)
+        alg.k_shortest_path()
+        alg.allocate_and_simulate()

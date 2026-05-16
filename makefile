@@ -1,11 +1,11 @@
 PYTHON: python3
 
-MAIN: parsing.py
+MAIN: main.py
 
 PIP: pip
 
 
-install: 
+install:
 	pip install -r requirements.txt
 
 run:

@@ -2,7 +2,17 @@
 import heapq
 from collections import defaultdict
 from typing import List
+
 class Algos():
+    def __init__(self, map_instance):
+        """Initialize Algos with Map instance to access its attributes"""
+        self.edges = map_instance.edges
+        self.start_hub = map_instance.start_hub
+        self.end_hub = map_instance.end_hub
+        self.all_hubs = map_instance.all_hubs
+        self.total_nb_drones = map_instance.total_nb_drones
+        self.paths = []
+    
     def k_shortest_path(self):
             graph = defaultdict(list)
             for u, v, w in self.edges:
@@ -63,13 +73,13 @@ class Drone():
         self.current_position = current_position   
         self.position_index = 0
         self.arrival_turn = None
-        self.turns_in_hub = 0  # Track how many turns drone has been in current hub
+        self.turns_in_hub = 0
         
 class Simulation():
     def __init__(self, drones: List[Drone], paths: List, hubs):
         self.all_drones = drones
-        self.active_drones = []   # Only drones that have launched
-        self.waiting_drones = list(drones)  # Queue of drones waiting to launch
+        self.active_drones = []
+        self.waiting_drones = list(drones)
         self.paths = paths
         self.hubs = hubs
         self.turns = 0
@@ -98,7 +108,6 @@ class Simulation():
             if self.is_end[drone.id]:
                 continue
             
-            # Check if drone has reached the end
             if drone.position_index >= len(drone.assigned_path) - 1:
                 self.is_end[drone.id] = True
                 self.hub_occupancy[drone.current_position] -= 1
@@ -113,10 +122,7 @@ class Simulation():
             
             drone.turns_in_hub += required_turns
             
-            # Try to move to next hub
             next_hub = drone.assigned_path[drone.position_index + 1]
-            print(next_hub)
-            
 
             if not self.check_hub_capacity(next_hub):
                 continue

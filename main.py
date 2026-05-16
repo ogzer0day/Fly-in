@@ -47,6 +47,6 @@ if __name__ == "__main__":
                 count += 1
             parse.validate_connection_data(dic, count)
 
-            print(dic)
+            map = Map(dic)
         except Exception as e:
             print(f"Error: {e}")

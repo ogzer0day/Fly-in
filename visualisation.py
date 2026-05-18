@@ -1,135 +1,79 @@
-import pygame
-from typing import Dict, Tuple
-import random
+import pygame as pg
 
-WIDTH, HEIGHT = 800, 600
-NODE_SIZE = 20
+class Visualizer:
+    def __init__(self, map_instance, simulator):
+        self.map = map_instance
+        self.sim = simulator
+        self.paused = True
+        self.manual_mode = True
+        self.scale = 60
+        self.padding = 200
+        
+        width = 1500
+        height = 700
+        
+        pg.init()
+        self.screen = pg.display.set_mode((width, height))
+        pg.display.set_caption("Drone Flow - SPACE to step, M to auto-play")
+        self.font = pg.font.Font(None, 20)
+        self.small_font = pg.font.Font(None, 12)
+        self.drone_colors = [(255, 100, 100), (100, 255, 100), (100, 100, 255), 
+                            (255, 255, 100), (255, 100, 255), (100, 255, 255),
+                            (255, 150, 50), (150, 255, 50), (50, 150, 255), (255, 50, 150)]
 
-
-class GraphVisualizer:
-    def __init__(self, nodes, edges):
-        """
-        nodes: dict -> {name: (x, y, type)}
-        edges: list of (u, v)
-        """
-        self.nodes = nodes
-        self.edges = edges
-
-        pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption("Drone Simulation")
-
-    def transform(self, x, y):
-        # scale coordinates to screen
-        return x * 50 + 100, y * 50 + 100
-
-    def draw_nodes(self):
-        for name, data in self.nodes.items():
-            x, y, t = data
-            px, py = self.transform(x, y)
-
-            if t == "start":
-                color = (0, 255, 0)
-            elif t == "end":
-                color = (255, 255, 0)
-            elif t == "blocked":
-                color = (100, 100, 100)
-            elif t == "restricted":
-                color = (255, 0, 0)
-            elif t == "priority":
-                color = (0, 200, 255)
-            else:
-                color = (200, 200, 200)
-
-            pygame.draw.circle(self.screen, color, (px, py), NODE_SIZE)
-
-    def draw_edges(self):
-        for u, v in self.edges:
-            x1, y1, _ = self.nodes[u]
-            x2, y2, _ = self.nodes[v]
-
-            pygame.draw.line(
-                self.screen,
-                (150, 150, 150),
-                self.transform(x1, y1),
-                self.transform(x2, y2),
-                2
-            )
-
-    def draw_drones(self, drones):
-        """
-        drones: { "D1": "A", "D2": "B" }
-        """
-        for d, node in drones.items():
-            x, y, _ = self.nodes[node]
-            px, py = self.transform(x, y)
-
-            pygame.draw.circle(self.screen, (0, 0, 255), (px, py), 8)
-
-    def render(self, drones):
-        self.screen.fill((30, 30, 30))
-
-        self.draw_edges()
-        self.draw_nodes()
-        self.draw_drones(drones)
-
-        pygame.display.update()
-
-    def run(self, get_state_callback):
-        """
-        get_state_callback must return:
-        nodes, drones per frame
-        """
-
-        clock = pygame.time.Clock()
+    def run(self):
         running = True
-
+        self.clock = pg.time.Clock()
         while running:
-            clock.tick(2)  # simulation speed
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
                     running = False
-
-            nodes, drones = get_state_callback()
-            self.nodes = nodes
-
-            self.render(drones)
-
-        pygame.quit()
-
-def get_state_callback():
-    # Example nodes (static or can evolve)
-    nodes = {
-        "A": (1, 1, "start"),
-        "B": (3, 1, "normal"),
-        "C": (3, 3, "end"),
-        "D": (1, 3, "restricted"),
-    }
-
-    # Example drones moving randomly
-    drones = {
-        "D1": random.choice(list(nodes.keys())),
-        "D2": random.choice(list(nodes.keys())),
-    }
-
-    return nodes, drones
-
-
-if __name__ == "__main__":
-    nodes = {
-        "A": (1, 1, "start"),
-        "B": (3, 1, "normal"),
-        "C": (3, 3, "end"),
-        "D": (1, 3, "restricted"),
-    }
-
-    edges = [
-        ("A", "B"),
-        ("B", "C"),
-        ("C", "D"),
-        ("D", "A"),
-    ]
-
-    viz = GraphVisualizer(nodes, edges)
-    viz.run(get_state_callback)
+                if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                    if self.manual_mode:
+                        self.sim.manual_step()
+                    else:
+                        self.paused = not self.paused
+                if event.type == pg.KEYDOWN and event.key == pg.K_m:
+                    self.manual_mode = not self.manual_mode
+                    self.paused = True
+            
+            if not self.paused and not self.manual_mode:
+                self.sim.step()
+            
+            self.screen.fill((0, 0, 0))
+            
+            # Draw connections
+            for conn in self.map.all_connections:
+                h1 = self.map.all_hubs[conn.hub1_name]
+                h2 = self.map.all_hubs[conn.hub2_name]
+                pg.draw.line(self.screen, (100, 200, 100), 
+                           (int(h1.X * self.scale + self.padding), int(h1.Y * self.scale + self.padding)),
+                           (int(h2.X * self.scale + self.padding), int(h2.Y * self.scale + self.padding)), 4)
+            
+            # Draw hubs
+            for hub in self.map.all_hubs.values():
+                x, y = int(hub.X * self.scale + self.padding), int(hub.Y * self.scale + self.padding)
+                color = (0, 255, 0) if hub == self.map.start_hub else ((255, 0, 0) if hub == self.map.end_hub else (0, 0, 255))
+                pg.draw.circle(self.screen, color, (x, y), 25)
+                text = self.small_font.render(hub.name, True, (255, 255, 255))
+                self.screen.blit(text, (x - text.get_width() // 2, y - 35))
+            
+            # Draw drones with colors and numbers
+            for drone in self.sim.active_drones:
+                if not self.sim.is_end[drone.id]:
+                    hub = self.map.all_hubs[drone.current_position]
+                    x, y = int(hub.X * self.scale + self.padding), int(hub.Y * self.scale + self.padding)
+                    color = self.drone_colors[(drone.id - 1) % len(self.drone_colors)]
+                    pg.draw.circle(self.screen, color, (x, y), 12)
+                    num_text = self.font.render(str(drone.id), True, (0, 0, 0))
+                    self.screen.blit(num_text, (x - 8, y - 8))
+            
+            # Draw status
+            mode = "MANUAL (SPACE=step)" if self.manual_mode else ("AUTO (PAUSED)" if self.paused else "AUTO (RUNNING)")
+            text = self.font.render(f"Turn: {self.sim.turns} | {mode} | M=toggle mode", True, (255, 255, 255))
+            self.screen.blit(text, (10, 10))
+            
+            pg.display.flip()
+            self.clock.tick(3)
+        
+        pg.quit()

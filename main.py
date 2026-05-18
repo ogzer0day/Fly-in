@@ -1,5 +1,8 @@
 from parsing import ParsingError, ParsingFile
 from map import Map
+from algorithm import Algos
+from visualisation import Visualizer
+from algorithm import Simulation
 import sys
 
 if __name__ == "__main__":
@@ -48,5 +51,16 @@ if __name__ == "__main__":
             parse.validate_connection_data(dic, count)
 
             map = Map(dic)
+            
+            algo = Algos(map)
+            algo.k_shortest_path()
+
+            drone_list = algo.allocate_and_simulate()
+            sim = Simulation(drone_list, algo.paths, map.all_hubs)
+            
+            viz = Visualizer(map, sim)
+            viz.run()
+            sim.simulation()
+            
         except Exception as e:
             print(f"Error: {e}")

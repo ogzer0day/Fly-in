@@ -22,7 +22,7 @@ class Algos():
             visited_paths = set()
             self.paths = []
             
-            while min_heap and len(self.paths) < 5:
+            while min_heap and len(self.paths) < 6:
                 min_cost, path = heapq.heappop(min_heap)
                 node = path[-1]
                 
@@ -39,8 +39,7 @@ class Algos():
                 for nei, weight in graph[node]:
                     if nei not in path:
                         new_cost = min_cost + weight
-                        heapq.heappush(min_heap, (new_cost, path + [nei]))
-                
+                        heapq.heappush(min_heap, (new_cost, path + [nei])) 
     
     def allocate_drones_to_paths(self):
         drone_assignments = {i: [] for i in range(len(self.paths))}
@@ -49,22 +48,21 @@ class Algos():
         for drone_id in range(1, self.total_nb_drones + 1):
             drone_assignments[path_idx].append(drone_id)
             path_idx = (path_idx + 1) % len(self.paths)
-                    
+                      
         return drone_assignments
         
     def allocate_and_simulate(self):
         drone_allocation = self.allocate_drones_to_paths()
-        drone_list = []
+        drones_list = []
         
         for drone_id in range(1, self.total_nb_drones + 1):
             for path_idx, drones in drone_allocation.items():
                 if drone_id in drones:
                     cost, path = self.paths[path_idx]
-                    drone_list.append(Drone(drone_id, path, self.start_hub.name))
+                    drones_list.append(Drone(drone_id, path, self.start_hub.name))
                     break
                 
-        sim = Simulation(drone_list, self.paths, self.all_hubs)
-        sim.simulation()
+        return drones_list
         
 class Drone():
     def __init__(self, id, assigned_path, current_position):
@@ -120,7 +118,11 @@ class Simulation():
             
             required_turns = 2 if zone == 'restricted' else 1
             
-            drone.turns_in_hub += required_turns
+            drone.turns_in_hub += 1
+            
+            
+            if drone.turns_in_hub < required_turns:
+                continue
             
             next_hub = drone.assigned_path[drone.position_index + 1]
 
@@ -132,6 +134,54 @@ class Simulation():
             drone.current_position = next_hub
             drone.position_index += 1
             drone.turns_in_hub = 0
+
+    def move_one_drone(self):
+        """Move only one drone (for manual stepping)"""
+        self.launch_drones()
+        for drone in self.active_drones:
+            if self.is_end[drone.id]:
+                continue
+            
+            if drone.position_index >= len(drone.assigned_path) - 1:
+                self.is_end[drone.id] = True
+                self.hub_occupancy[drone.current_position] -= 1
+                if drone.arrival_turn is None:
+                    drone.arrival_turn = self.turns
+                return True
+            
+            current_hub = self.hubs[drone.current_position]
+            zone = current_hub.properties.zone
+            required_turns = 2 if zone == 'restricted' else 1
+            drone.turns_in_hub += 1
+            
+            if drone.turns_in_hub < required_turns:
+                return True
+            
+            next_hub = drone.assigned_path[drone.position_index + 1]
+            if not self.check_hub_capacity(next_hub):
+                return True
+            
+            self.hub_occupancy[drone.current_position] -= 1
+            self.hub_occupancy[next_hub] += 1
+            drone.current_position = next_hub
+            drone.position_index += 1
+            drone.turns_in_hub = 0
+            return True
+        return False
+
+    def step(self):
+        """Execute one simulation step"""
+        if self.waiting_drones or not all(self.is_end.values()):
+            self.launch_drones()
+            self.move_drones()
+            self.turns += 1
+            return True
+        return False
+
+    def manual_step(self):
+        """Execute one drone movement for manual mode and increment turn"""
+        self.move_one_drone()
+        self.turns += 1
 
     def simulation(self):
         print("============ SIMULATION START ============")

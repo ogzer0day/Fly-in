@@ -108,6 +108,6 @@ class Map():
 
                 self.edges.append([k, n[0].name, time])
                 
-        alg = Algos(self)
-        alg.k_shortest_path()
-        alg.allocate_and_simulate()
+        self.algos = Algos(self)
+        self.algos.k_shortest_path()
+        self.algos.allocate_and_simulate()

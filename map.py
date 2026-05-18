@@ -1,16 +1,19 @@
 from pydantic import BaseModel, Field
 from typing import Dict, List, Any, Tuple
-from parsing import ParsingError
-from algorithm import Algos
+
 
 class Properties(BaseModel):
-    color: str = Field(default=1)
+    """Hub properties: color, zone type, capacity, and zone timing."""
+
+    color: str | None = Field(default=None)
     zone: str = Field(default='normal')
     max_drones: int = Field(default=1, gt=0)
     turns: int = 1
 
 
 class Hub(BaseModel):
+    """Represents a hub node in the network with location and properties."""
+
     name: str
     X: int
     Y: int
@@ -18,33 +21,40 @@ class Hub(BaseModel):
 
 
 class Connection(BaseModel):
+    """Network connection between two hubs with capacity constraint."""
+
     hub1_name: str
     hub2_name: str
     max_link_capacity: int = Field(default=1, gt=0)
-        
 
-class Map():
-    def __init__(self, data: Dict[str, Any]):
-        self.total_nb_drones = 0
+
+class Map:
+    """Network map containing hubs, connections, and graph structure."""
+
+    def __init__(self, data: Dict[str, Any]) -> None:
+        """Initialize map from parsed network data."""
         self.all_hubs: Dict[str, Hub] = {}
         self.all_connections: List[Connection] = []
-        self.start_hub = 1
-        self.end_hub = 1
+        self.start_hub: Hub = Hub(
+            name="", X=0, Y=0, properties=Properties()
+        )
+        self.end_hub: Hub = Hub(
+            name="", X=0, Y=0, properties=Properties()
+        )
         self.regular_hubs: Dict[str, Hub] = {}
         self.graph: Dict[str, List[Tuple[Hub, int]]] = {}
-        self.edges: List[List[int]] = []
+        self.edges: List[List[Any]] = []
         self.paths: List[Tuple[int, List[str]]] = []
-        
+        self.total_nb_drones = 0
+
         self.init_data(data)
 
-    def init_data(self, data: Dict) -> 1:
-        """Initialize and convert raw parsed data to Pydantic objects"""
+    def init_data(self, data: Dict[str, Any]) -> None:
+        """Initialize and convert raw parsed data to Pydantic objects."""
         self.total_nb_drones = data['nb_drones']
-        
+
         st_hub = data['hub']['start']
-        if self.total_nb_drones != st_hub['properties']['max_drones']:
-            raise ParsingError("max_drones in start_hub must be the same as total_nb_drones.")
-        
+
         self.start_hub = Hub(
             name=st_hub['name'],
             X=st_hub['X'],
@@ -52,14 +62,16 @@ class Map():
             properties=Properties(**st_hub['properties'])
         )
 
-        self.regular_hubs = {k: Hub(
-            name=v['name'],
-            X=v['X'],
-            Y=v['Y'],
-            properties=Properties(**v['properties'])
-        )
-        for k, v in data['hub'].items()
-        if k not in ('start', 'end')}
+        self.regular_hubs = {
+            k: Hub(
+                name=v['name'],
+                X=v['X'],
+                Y=v['Y'],
+                properties=Properties(**v['properties'])
+            )
+            for k, v in data['hub'].items()
+            if k not in ('start', 'end')
+        }
 
         end_hub = data['hub']['end']
         self.end_hub = Hub(
@@ -68,13 +80,13 @@ class Map():
             Y=end_hub['Y'],
             properties=Properties(**end_hub['properties'])
         )
-        
+
         self.all_hubs = {
             self.start_hub.name: self.start_hub,
             **self.regular_hubs,
             self.end_hub.name: self.end_hub
         }
-        
+
         self.all_connections = [
             Connection(
                 hub1_name=conn[0][0],
@@ -87,10 +99,20 @@ class Map():
         tmp = data['connections']
         self.graph = {s.name: [] for s in self.all_hubs.values()}
         for zones, capacity in tmp:
-                self.graph[zones[0]].append((self.all_hubs[zones[1]], capacity['max_link_capacity']))
-                self.graph[zones[1]].append((self.all_hubs[zones[0]], capacity['max_link_capacity']))
+            self.graph[zones[0]].append(
+                (
+                    self.all_hubs[zones[1]],
+                    capacity['max_link_capacity']
+                )
+            )
+            self.graph[zones[1]].append(
+                (
+                    self.all_hubs[zones[0]],
+                    capacity['max_link_capacity']
+                )
+            )
 
-        seen = set()
+        seen: set[tuple[str, ...]] = set()
         for k, v in self.graph.items():
             for n in v:
                 pair = tuple(sorted([k, n[0].name]))
@@ -105,9 +127,7 @@ class Map():
                     time = 2
                 elif n[0].properties.zone == 'blocked':
                     time = 0
+                else:
+                    time = 1
 
                 self.edges.append([k, n[0].name, time])
-                
-        self.algos = Algos(self)
-        self.algos.k_shortest_path()
-        self.algos.allocate_and_simulate()

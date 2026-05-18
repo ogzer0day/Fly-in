@@ -1,4 +1,2 @@
 pydantic
-matplotlib
-networkx
 pygame

@@ -1,26 +1,28 @@
-PYTHON: python3
+PYTHON = python3
 
-MAIN: main.py
+MAIN = main.py
 
-PIP: pip
+PIP = pip
+
+MAP = maps/medium/03_priority_puzzle.txt
 
 
 install:
 	pip install -r requirements.txt
 
 run:
-	$(PYTHON) $(MAIN)
+	$(PYTHON) $(MAIN) $(MAP)
 
 debug:
 	$(PYTHON) -m pdb $(MAIN)
 
 clean:
-	rm -f  __pycache__ .mypy_cache
+	rm -rf __pycache__ .mypy_cache
 
 lint:
 	flake8 .
 	mypy . \
-	--warn-return-any
+	--warn-return-any \
 	--warn-unused-ignores \
 	--ignore-missing-imports \
 	--disallow-untyped-defs \

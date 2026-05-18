@@ -64,7 +64,7 @@ hub: priority_dead2 11 -1 [color=black]
 
 # === LAYER 4: The Convergence Hell ===
 # Multiple restricted paths that must merge
-hub: conv_restricted1 12 2 [zone=restricted color=darkred max_drones=1] #;ouhoj #jfg
+hub: conv_restricted1 12 2 [zone=restricted color=darkred max_drones=1]
 hub: conv_restricted2 13 2 [zone=restricted color=darkred max_drones=1]
 hub: conv_restricted3 14 2 [zone=restricted color=darkred max_drones=1]
 
@@ -90,7 +90,7 @@ end_hub: impossible_goal 21 0 [color=rainbow max_drones=25]
 # === CONNECTIONS: The Web of Suffering ===
 
 # Layer 0 connections (bottleneck hell)
-connection: start-gate_hell1 [max_link_capacity=1] 
+connection: start-gate_hell1 [max_link_capacity=1]
 connection: gate_hell1-gate_hell2 [max_link_capacity=1]
 connection: gate_hell2-gate_hell3 [max_link_capacity=1]
 connection: gate_hell3-gate_hell4 [max_link_capacity=1]

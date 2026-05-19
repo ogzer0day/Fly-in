@@ -232,5 +232,5 @@ class Simulation:
             self.move_drones()
             self.turns += 1
 
-        print(f"Total turns: {self.turns} turns")
+        print(f"Total turns: {self.turns - 1} turns")
         print("============ SIMULATION ENDS ============")

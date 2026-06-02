@@ -31,7 +31,7 @@ class Visualizer:
             (255, 50, 150)
         ]
 
-    def hub_color(self, hub: Any) -> tuple[int, int, int]:
+    def hub_color(self, hub: Any) -> tuple[int, int, int] | pg.Color:
         """Resolve hub display color from metadata, with role fallback."""
         if hub.properties.color:
             try:

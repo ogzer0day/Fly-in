@@ -4,14 +4,12 @@ MAIN = main.py
 
 PIP = pip
 
-MAP = maps/medium/03_priority_puzzle.txt
-
 
 install:
 	pip install -r requirements.txt
 
 run:
-	$(PYTHON) $(MAIN) $(MAP)
+	$(PYTHON) $(MAIN) $(ARGS)
 
 debug:
 	$(PYTHON) -m pdb $(MAIN)

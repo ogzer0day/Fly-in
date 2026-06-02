@@ -105,7 +105,7 @@ class Visualizer:
             else:
                 mode = "AUTO (RUNNING)"
             text = self.font.render(
-                f"Turn: {self.sim.turns} | {mode} | M=toggle mode",
+                f"Turn: {self.sim.turns - 1} | {mode} | M=toggle mode",
                 True, (255, 255, 255)
             )
             self.screen.blit(text, (10, 10))

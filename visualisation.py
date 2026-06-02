@@ -31,6 +31,20 @@ class Visualizer:
             (255, 50, 150)
         ]
 
+    def hub_color(self, hub: Any) -> tuple[int, int, int]:
+        """Resolve hub display color from metadata, with role fallback."""
+        if hub.properties.color:
+            try:
+                return pg.Color(hub.properties.color)
+            except ValueError:
+                pass
+
+        if hub == self.map.start_hub:
+            return (0, 255, 0)
+        if hub == self.map.end_hub:
+            return (255, 0, 0)
+        return (0, 0, 255)
+
     def run(self) -> None:
         """Main loop - handle events, update simulation, and render."""
         running = True
@@ -52,6 +66,9 @@ class Visualizer:
             if not self.paused and not self.manual_mode:
                 self.sim.step()
 
+            if not self.sim.waiting_drones and all(self.sim.is_end.values()):
+                running = False
+
             self.screen.fill((0, 0, 0))
 
             for conn in self.map.all_connections:
@@ -69,12 +86,7 @@ class Visualizer:
             for hub in self.map.all_hubs.values():
                 x = int(hub.X * self.scale + self.padding)
                 y = int(hub.Y * self.scale + self.padding)
-                if hub == self.map.start_hub:
-                    color = (0, 255, 0)
-                elif hub == self.map.end_hub:
-                    color = (255, 0, 0)
-                else:
-                    color = (0, 0, 255)
+                color = self.hub_color(hub)
                 pg.draw.circle(self.screen, color, (x, y), 25)
                 text = self.small_font.render(
                     hub.name, True, (255, 255, 255)
@@ -109,8 +121,11 @@ class Visualizer:
                 True, (255, 255, 255)
             )
             self.screen.blit(text, (10, 10))
-
+            """Updates the full display so everything
+            drawn this frame becomes visible."""
             pg.display.flip()
+            """Limits the loop to 3 frames per second,
+            so the visualization does not run too fast."""
             self.clock.tick(3)
 
         pg.quit()

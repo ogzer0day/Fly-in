@@ -107,6 +107,7 @@ class Simulation:
         self.hubs = hubs
         self.turns = 0
         self.is_end: Dict[int, bool] = {}
+        """dictionary that tracks how many drones are currently at each hub"""
         self.hub_occupancy: Dict[str, int] = {
             hub: 0 for hub in hubs.keys()
         }

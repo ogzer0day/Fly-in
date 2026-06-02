@@ -46,6 +46,9 @@ if __name__ == "__main__":
                     )
                     if hub_data is not None:
                         dic.update(hub_data)
+                elif 'connection' in line:
+                    parse.parse_connection(line, count)
+
                 elif 'hub' in line:
                     hub_data = parse.parse_hub(
                         line, count, is_start=False, is_end=False,
@@ -53,8 +56,6 @@ if __name__ == "__main__":
                     )
                     if hub_data is not None:
                         dic.update(hub_data)
-                elif 'connection' in line:
-                    parse.parse_connection(line, count)
 
                 count += 1
             parse.validate_connection_data(dic, count)

@@ -9,7 +9,7 @@ install:
 	pip install -r requirements.txt
 
 run:
-	$(PYTHON) $(MAIN) $(ARGS)
+	$(PYTHON) $(MAIN) $(ARGS) $(ARGS)
 
 debug:
 	$(PYTHON) -m pdb $(MAIN)
@@ -18,8 +18,8 @@ clean:
 	rm -rf __pycache__ .mypy_cache
 
 lint:
-	flake8 .
-	mypy . \
+	$(PYTHON) -m flake8 .
+	$(PYTHON) -m mypy . \
 	--warn-return-any \
 	--warn-unused-ignores \
 	--ignore-missing-imports \
@@ -27,8 +27,8 @@ lint:
 	--check-untyped-defs
 
 lint-strict:
-	flake8 .
-	mypy . --strict
+	$(PYTHON) -m flake8 .
+	$(PYTHON) -m mypy . --strict
 
 
 .PHONY: install run debug clean lint lint-strict

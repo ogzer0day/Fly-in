@@ -9,7 +9,7 @@ install:
 	pip install -r requirements.txt
 
 run:
-	$(PYTHON) $(MAIN) $(ARGS) $(ARGS)
+	$(PYTHON) $(MAIN) $(ARGS)
 
 debug:
 	$(PYTHON) -m pdb $(MAIN)

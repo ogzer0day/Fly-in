@@ -8,7 +8,7 @@ import sys
 
 if __name__ == "__main__":
     if (len(sys.argv) < 2) or (len(sys.argv) > 2):
-        print("Error: the length of argument most be 2")
+        print(f"Error: the length of argument most be {len(sys.argv)}")
         exit(1)
 
     parse = ParsingFile(

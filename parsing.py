@@ -291,13 +291,6 @@ class ParsingFile:
                                 f"'{prop_parts[1]}' of "
                                 f"'{prop_parts[0]}' must be > 0"
                             )
-                        elif num > nb_drones:
-                            raise ParsingError(
-                                f"In line {count}, value "
-                                f"'{prop_parts[1]}' of "
-                                f"'{prop_parts[0]}' "
-                                f"must be <= nb_drones"
-                            )
                     except ValueError:
                         raise ParsingError(
                             f"In line {count}, value "
